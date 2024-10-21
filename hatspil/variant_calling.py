@@ -445,9 +445,9 @@ class VariantCalling:
             f"{config.perl} table_annovar.pl "
             f"{{input_filename}} humandb/ "
             f"-buildver {self.build_version} "
-            f"-protocol refGene,snp138,cosmic70,clinvar_20160302,"
-            f"popfreq_all_20150413,dbnsfp30a,cadd13 "
-            f"-operation g,f,f,f,f,f,f -nastring NA -remove -v",
+            f"-protocol ensGene,avsnp151,cosmic100,clinvar_20240917,"
+            f"gnomad41,dbnsfp47a,dbnsfp47a_interpro,GTEx_v8_eQTL,GTEx_v8_sQTL  "
+            f"-operation g,f,f,f,f,f,f,f,f -nastring NA -remove -v",
             input_filenames=[self.annovar_file],
             override_last_files=False,
             error_string="ANNOVAR exited with status {status}",
@@ -476,7 +476,7 @@ class VariantCalling:
 
         annotation = pd.read_table(self.multianno_filename)
         annotation.rename(
-            index=str, columns={"snp138": "snp", "cosmic70": "cosmic"}, inplace=True
+            index=str, columns={"avsnp151": "snp", "COSMIC100": "cosmic"}, inplace=True
         )
         annotation = annotation[annotation.Chr.str.match(r"chr(?:\d{1,2}|[xXyY])")]
         annotation.insert(
@@ -501,37 +501,37 @@ class VariantCalling:
         annotation.reset_index(inplace=True, drop=True)
         gene_info.reset_index(inplace=True, drop=True)
         annotation["gene_type"] = annotation.merge(
-            gene_info, left_on="Gene.refGene", right_on="symbol", how="left"
+            gene_info, left_on="Gene.ensGene", right_on="symbol", how="left"
         ).cancer_type.values
         annotation.loc[annotation.gene_type == "rst", "gene_type"] = float("nan")
         annotation["cancer_gene_site"] = float("nan")
-        selected_symbols = annotation["Gene.refGene"].isin(selected_cancer_genes.symbol)
+        selected_symbols = annotation["Gene.ensGene"].isin(selected_cancer_genes.symbol)
         annotation.loc[selected_symbols, "cancer_gene_site"] = kit.cancer_site
 
         annotation.loc[
-            annotation["Func.refGene"] == "splicing", "ExonicFunc.refGene"
+            annotation["Func.ensGene"] == "splicing", "ExonicFunc.ensGene"
         ] = "splicing"
         annotation.loc[
-            annotation["Func.refGene"] == "splicing", "AAChange.refGene"
-        ] = annotation[annotation["Func.refGene"] == "splicing"]["GeneDetail.refGene"]
+            annotation["Func.ensGene"] == "splicing", "AAChange.ensGene"
+        ] = annotation[annotation["Func.ensGene"] == "splicing"]["GeneDetail.ensGene"]
         annotation.loc[
-            annotation["Func.refGene"] == "UTR3", "AAChange.refGene"
-        ] = annotation[annotation["Func.refGene"] == "UTR3"]["GeneDetail.refGene"]
+            annotation["Func.ensGene"] == "UTR3", "AAChange.ensGene"
+        ] = annotation[annotation["Func.ensGene"] == "UTR3"]["GeneDetail.ensGene"]
         annotation.loc[
-            annotation["Func.refGene"] == "UTR5", "AAChange.refGene"
-        ] = annotation[annotation["Func.refGene"] == "UTR5"]["GeneDetail.refGene"]
+            annotation["Func.ensGene"] == "UTR5", "AAChange.ensGene"
+        ] = annotation[annotation["Func.ensGene"] == "UTR5"]["GeneDetail.ensGene"]
 
-        annotation["Gene.refGene"] = annotation["Gene.refGene"].map(
+        annotation["Gene.ensGene"] = annotation["Gene.ensGene"].map(
             lambda value: re.split(r"[^A-Za-z0-9]", value)[0]
         )
 
         annotation.loc[
-            annotation.CADD13_PHRED > VariantCalling.medium_damage, "damaging"
+            annotation.CADD_phred > VariantCalling.medium_damage, "damaging"
         ] = "Medium"
         annotation.loc[
-            (annotation.CADD13_PHRED > VariantCalling.high_damage)
+            (annotation.CADD_phred > VariantCalling.high_damage)
             | (
-                annotation["ExonicFunc.refGene"].isin(
+                annotation["ExonicFunc.ensGene"].isin(
                     (
                         "frameshift substitution",
                         "nonframeshift substitution",
@@ -575,16 +575,16 @@ class VariantCalling:
         annotation["hgnc_canonical_refseq"] = annotation.apply(
             lambda row: "|".join(
                 [
-                    refgene
-                    for refgene in str(row["AAChange.refGene"]).split(",")
-                    if re.search(str(row.hgnc_refseq_accession), refgene)
+                    ensGene
+                    for ensGene in str(row["AAChange.ensGene"]).split(",")
+                    if re.search(str(row.hgnc_refseq_accession), ensGene)
                 ]
             ),
             axis=1,
         )
         empty_canonical_refseqs = annotation.hgnc_canonical_refseq == ""
         annotation.loc[empty_canonical_refseqs, "alternative_refseq"] = annotation.loc[
-            empty_canonical_refseqs, "AAChange.refGene"
+            empty_canonical_refseqs, "AAChange.ensGene"
         ].tolist()
         annotation.loc[empty_canonical_refseqs, "hgnc_canonical_refseq"] = float("nan")
 
@@ -611,7 +611,7 @@ class VariantCalling:
                 set([index[0] for index in amplicons_overlaps]), "in_gene_panel"
             ] = True
 
-        annotation["druggable"] = annotation["Gene.refGene"].isin(
+        annotation["druggable"] = annotation["Gene.ensGene"].isin(
             panel_drug.gene_symbol
         )
 
@@ -637,20 +637,35 @@ class VariantCalling:
                 "End",
                 "Ref",
                 "Alt",
-                "Func.refGene",
-                "Gene.refGene",
-                "GeneDetail.refGene",
-                "ExonicFunc.refGene",
-                "AAChange.refGene",
+                "Func.ensGene",
+                "Gene.ensGene",
+                "GeneDetail.ensGene",
+                "ExonicFunc.ensGene",
+                "AAChange.ensGene",
                 "snp",
                 "cosmic",
-                "CLINSIG",
-                "CLNDBN",
-                "CLNACC",
-                "CLNDSDB",
-                "CLNDSDBID",
-                "1000G_ALL",
-                "CADD13_PHRED",
+                "CLNALLELEID",
+                "CLNDN",
+                "CLNDISDB",
+                "CLNREVSTAT",
+                "CLNSIG",
+                "ONCDN",
+                "ONCDISDB",
+                "ONCREVSTAT",
+                "ONC",
+                "SCIDN",
+                "SCIDISDB",
+                "SCIREVSTAT",
+                "SCI",
+                "gnomad41_genome_AF",
+                "CADD_phred",
+                "REVEL_score",
+                "phyloP100way_vertebrate",
+                "Interpro_domain",
+                "GTEx_V8_eQTL_gene",
+                "GTEx_V8_eQTL_tissue",
+                "GTEx_V8_sQTL_gene",
+                "GTEx_V8_sQTL_tissue",
                 "gene_type",
                 "damaging",
                 "hgnc_refseq_accession",
