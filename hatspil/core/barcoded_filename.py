@@ -54,6 +54,7 @@ class Analyte(IntEnum):
     GENE_PANEL = 1
     FUSION_PANEL = 2
     RNASEQ = 3
+    WHOLE_GENOME = 8
 
 
 class Tissue(IntEnum):
