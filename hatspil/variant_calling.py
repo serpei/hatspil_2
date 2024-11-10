@@ -446,7 +446,7 @@ class VariantCalling:
             f"{{input_filename}} humandb/ "
             f"-buildver {self.build_version} "
             f"-protocol ensGene,avsnp151,cosmic100,clinvar_20240917,"
-            f"gnomad41,dbnsfp47a,dbnsfp47a_interpro,GTEx_v8_eQTL,GTEx_v8_sQTL  "
+            f"gnomad41_genome,dbnsfp47a,dbnsfp47a_interpro,GTEx_v8_eQTL,GTEx_v8_sQTL  "
             f"-operation g,f,f,f,f,f,f,f,f -nastring NA -remove -v",
             input_filenames=[self.annovar_file],
             override_last_files=False,
