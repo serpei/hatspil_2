@@ -615,7 +615,7 @@ class VariantCalling:
             panel_drug.gene_symbol
         )
 
-        self.variants = pd.read_csv(self.variants_filename, index_col=False, on_bad_lines='warn')
+        self.variants = pd.read_csv(self.variants_filename, index_col=False, on_bad_lines='skip')
         annotation.reset_index(inplace=True, drop=True)
         self.variants.reset_index(inplace=True, drop=True)
 
@@ -690,7 +690,7 @@ class VariantCalling:
         if config.use_mongodb:
             from pymongo.errors import DocumentTooLarge
 
-            self.variants = pd.read_csv(self.variants_filename, index_col=False, on_bad_lines='warn')
+            self.variants = pd.read_csv(self.variants_filename, index_col=False, on_bad_lines='skip')
             variants = [
                 {
                     key.replace(".", " "): value
